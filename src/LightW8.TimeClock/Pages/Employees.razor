@@ -1,0 +1,188 @@
+﻿@page "/employees"
+
+@using LightW8.TimeClock.Business
+@inject EmployeeService EmployeeService
+
+@if (_employees == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h2>Enter a new employee:</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Middle Name</th>
+                <th>Last Name</th>
+                <th>Date of Birth</th>
+                <th>Is Manager</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><input @bind-value="@_newEmployee.FirstName" /></td>
+                <td><input @bind-value="@_newEmployee.MiddleName" /></td>
+                <td><input @bind-value="@_newEmployee.LastName" /></td>
+                <td><input type="date" @bind-value="@_newEmployee.DateOfBirth" /></td>
+                @*<td><NodaTimePicker.DatePicker Inline=true @bind-Value="@newEmployee.DateOfBirth"/></td>*@
+                @*<td><Radzen.Blazor.RadzenDatePicker TValue="DateTime" @bind-value="@newEmployee.DateOfBirth" DateFormat="MM/dd/yyyy"/></td>*@
+                <td>
+                    <input type="checkbox" @bind="_newEmployee.IsManager">
+                </td>
+                <td>
+                    <button class="btn btn-primary" @onclick="@(async e => await AddNewEmployeeAsync())">
+                        Add New Employee
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    <h2>Employee list</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Middle Name</th>
+                <th>Last Name</th>
+                <th>Date of Birth</th>
+                <th>Is Manager</th>
+                <th>Edit</th>
+                <th>Remove</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var employee in _employees)
+            {
+                <tr>
+                    @if (IsEditing && employee == _editEmployee) // only show edit buttons for employee being edited
+                    {
+                        <td><input @bind-value="@_editEmployee.FirstName" /></td>
+                        <td><input @bind-value="@_editEmployee.MiddleName" /></td>
+                        <td><input @bind-value="@_editEmployee.LastName" /></td>
+                        <td><input type="date" @bind-value="@_editEmployee.DateOfBirth" /></td>
+                        <td>
+                            <input type="checkbox" @bind="_editEmployee.IsManager">
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="@(e => { employee.Reset(_oldEmployee); _editEmployee = null; })">
+                                Cancel
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="@(async e => await SaveEmployeeAsync(_oldEmployee, _editEmployee))">
+                                Save
+                            </button>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>@employee.FirstName</td>
+                        <td>@employee.MiddleName</td>
+                        <td>@employee.LastName</td>
+                        <td>@employee.DateOfBirth.ToString("d")</td>
+                        <td>
+                            <input type="checkbox" @bind="employee.IsManager" disabled>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" disabled="@IsEditing"
+                                    @onclick="@(e =>
+                                                {
+                                                    // retain a copy of the old employee
+                                                    _oldEmployee = employee.Clone();
+                                                    // specify the employee should be editable
+                                                    _editEmployee = employee;
+                                                })">
+                                Edit
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary" disabled="@IsEditing" @onclick="@(async e => await RemoveEmployeeAsync(employee))">
+                                Remove
+                            </button>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+        @*<div>
+
+        <EditForm Model="exampleEmployee" OnValidSubmit="@(e => AddEmployeeAsync(exampleEmployee))">
+            <InputText id="firstName" @bind-Value="exampleEmployee.FirstName" />
+            <InputText id="middleName" @bind-Value="exampleEmployee.MiddleName" />
+            <InputText id="lastName" @bind-Value="exampleEmployee.LastName" />
+            <button class="btn btn-primary" type="submit">Submit</button>
+        </EditForm>
+    </div>*@
+}
+
+@code {
+    private IList<Employee> _employees;
+    private Employee _newEmployee = new Employee("", "", "", new DateTime(1970, 1, 1));
+    private Employee _oldEmployee;
+    private Employee _editEmployee;
+
+    // property for selectively rendering UI
+    private bool IsEditing => _editEmployee != null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // initialize the employee list
+        _employees = await EmployeeService.GetEmployeesAsync();
+    }
+
+    private void AddReports(Employee manager, IList<Employee> reports)
+    {
+        var localReports = reports ?? new[]
+        {
+            _employees.FirstOrDefault(e => e.FirstName == "Alice"),
+            _employees.FirstOrDefault(e => e.FirstName == "Chris"),
+        };
+
+        localReports.ForEach(manager.TryAddReport);
+    }
+
+    private async Task AddNewEmployeeAsync()
+    {
+        if (_newEmployee == null ||
+            _employees.Contains(_newEmployee) ||
+            string.IsNullOrWhiteSpace(_newEmployee.FirstName) ||
+            string.IsNullOrWhiteSpace(_newEmployee.LastName))
+            return;
+
+        // try to add the employee
+        if (!EmployeeService.TryAddEmployee(_newEmployee))
+            return;
+
+        // reset the employee template
+        _newEmployee = new Employee("", "", "", new DateTime(1970, 1, 1));
+
+        // refresh the employee list
+        _employees = await EmployeeService.GetEmployeesAsync();
+    }
+
+    private async Task RemoveEmployeeAsync(Employee e)
+    {
+        // try to remove the employee
+        if (!EmployeeService.TryRemoveEmployee(e))
+            return;
+
+        // refresh the employee list
+        _employees = await EmployeeService.GetEmployeesAsync();
+    }
+
+    private async Task SaveEmployeeAsync(Employee oldEmployee, Employee newEmployee)
+    {
+        // try to update the employee
+        if (!EmployeeService.TryUpdateEmployee(oldEmployee, newEmployee))
+            return;
+
+        _editEmployee = null;
+
+        // refresh the employee list
+        _employees = await EmployeeService.GetEmployeesAsync();
+    }
+}
