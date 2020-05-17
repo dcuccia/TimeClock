@@ -1,71 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LightW8.TimeClock.Business
 {
     public class Company
     {
-        public Company(string name)
-        {
-            Name = name;
-        }
-
-        public bool TryAddEmployee(Employee e)
-        {
-            if (e == null || Employees.Contains(e))
-                return false;
-
-            Employees.Add(e);
-
-            return true;
-        }
-
-        public bool TryUpdateEmployee(Employee oldEmployee, Employee newEmployee)
-        {
-            if (newEmployee == null || !Employees.Contains(oldEmployee))
-                return false;
-
-            var e = Employees.Where(e => e == oldEmployee).FirstOrDefault()
-                ?? new Employee("", "", "", DateTime.Now.Date);
-            
-            e.FirstName = newEmployee.FirstName;
-            e.MiddleName = newEmployee.MiddleName;
-            e.LastName = newEmployee.LastName;
-            e.DateOfBirth = newEmployee.DateOfBirth;
-            e.IsManager = newEmployee.IsManager;
-
-            return true;
-        }
-
-        public bool TryRemoveEmployee(Employee e)
-        {
-            if (e == null || !Employees.Contains(e))
-                return false;
-
-            return Employees.Remove(e);
-        }
-
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
         public string Name { get; set; }
-        public IList<Employee> Employees { get; set; } = new List<Employee>();
+        public IList<Employee> Employees { get; set; }
+
+        public override string ToString() => JsonSerializer.Serialize(this);
     }
 
     public class Employee
     {
-        public Employee(string firstName, string middleName, string lastName, DateTime dateOfBirth)
-        {
-            FirstName = firstName;
-            MiddleName = middleName;
-            LastName = lastName;
-            DateOfBirth = dateOfBirth;
-        }
-
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
         public string LastName { get; set; }
-        public DateTime DateOfBirth { get; set;}
+        public DateTime DateOfBirth { get; set; }
         public bool IsManager { get; set; } = false;
-        public IList<Employee> Reports { get; set; } = new List<Employee>();
+        public IList<Employee> Reports { get; set; }
 
         public bool TryAddReport(Employee employee)
         {
@@ -79,12 +38,16 @@ namespace LightW8.TimeClock.Business
 
         public override bool Equals(object obj) => obj is Employee e && e.FirstName == FirstName && e.LastName == LastName && e.DateOfBirth == DateOfBirth;
 
-        public Employee Clone() => 
-            new Employee(FirstName, MiddleName, LastName, DateOfBirth)
-            {
-                Reports = Reports,
-                IsManager = IsManager 
-            };
+        // create a duplicate (shallow-copy reports)
+        public Employee Clone() => new Employee 
+        {
+            FirstName = FirstName,
+            MiddleName = MiddleName,
+            LastName = LastName,
+            DateOfBirth = DateOfBirth,
+            IsManager = IsManager,
+            Reports = Reports,
+        };
 
         public void Reset(Employee resetValues)
         {
@@ -96,6 +59,7 @@ namespace LightW8.TimeClock.Business
             LastName = resetValues.LastName;
             DateOfBirth = resetValues.DateOfBirth;
             IsManager = resetValues.IsManager;
+            Reports = resetValues.Reports;
         }
     }
 }

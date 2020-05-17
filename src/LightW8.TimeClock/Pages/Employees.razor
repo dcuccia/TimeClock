@@ -1,7 +1,7 @@
 ﻿@page "/employees"
 
 @using LightW8.TimeClock.Business
-@inject EmployeeService EmployeeService
+@inject IEmployeeService EmployeeService
 
 @if (_employees == null)
 {
@@ -72,7 +72,7 @@ else
                             </button>
                         </td>
                         <td>
-                            <button class="btn btn-primary" @onclick="@(async e => await SaveEmployeeAsync(_oldEmployee, _editEmployee))">
+                            <button class="btn btn-primary" @onclick="@(async e => await SaveEmployeeAsync(_editEmployee))">
                                 Save
                             </button>
                         </td>
@@ -108,20 +108,20 @@ else
             }
         </tbody>
     </table>
-        @*<div>
+    @*<div>
 
-        <EditForm Model="exampleEmployee" OnValidSubmit="@(e => AddEmployeeAsync(exampleEmployee))">
-            <InputText id="firstName" @bind-Value="exampleEmployee.FirstName" />
-            <InputText id="middleName" @bind-Value="exampleEmployee.MiddleName" />
-            <InputText id="lastName" @bind-Value="exampleEmployee.LastName" />
-            <button class="btn btn-primary" type="submit">Submit</button>
-        </EditForm>
-    </div>*@
+            <EditForm Model="exampleEmployee" OnValidSubmit="@(e => AddEmployeeAsync(exampleEmployee))">
+                <InputText id="firstName" @bind-Value="exampleEmployee.FirstName" />
+                <InputText id="middleName" @bind-Value="exampleEmployee.MiddleName" />
+                <InputText id="lastName" @bind-Value="exampleEmployee.LastName" />
+                <button class="btn btn-primary" type="submit">Submit</button>
+            </EditForm>
+        </div>*@
 }
 
 @code {
     private IList<Employee> _employees;
-    private Employee _newEmployee = new Employee("", "", "", new DateTime(1970, 1, 1));
+    private Employee _newEmployee = new Employee();
     private Employee _oldEmployee;
     private Employee _editEmployee;
 
@@ -130,8 +130,18 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await UpdateEmployeeListAsync();
+    }
+
+    private async Task UpdateEmployeeListAsync()
+    {
         // initialize the employee list
-        _employees = await EmployeeService.GetEmployeesAsync();
+        _employees = new List<Employee>();
+        await foreach (Employee e in EmployeeService.GetEmployeesAsync())
+        {
+            _employees.Add(e);
+        }
+        StateHasChanged();
     }
 
     private void AddReports(Employee manager, IList<Employee> reports)
@@ -142,47 +152,49 @@ else
             _employees.FirstOrDefault(e => e.FirstName == "Chris"),
         };
 
-        localReports.ForEach(manager.TryAddReport);
+        foreach (var report in localReports)
+        {
+            manager.TryAddReport(report);
+        }
     }
 
     private async Task AddNewEmployeeAsync()
     {
         if (_newEmployee == null ||
-            _employees.Contains(_newEmployee) ||
             string.IsNullOrWhiteSpace(_newEmployee.FirstName) ||
             string.IsNullOrWhiteSpace(_newEmployee.LastName))
             return;
 
         // try to add the employee
-        if (!EmployeeService.TryAddEmployee(_newEmployee))
+        if (!(await EmployeeService.TryAddEmployeeAsync(_newEmployee)))
             return;
 
         // reset the employee template
-        _newEmployee = new Employee("", "", "", new DateTime(1970, 1, 1));
+        _newEmployee = new Employee();
 
         // refresh the employee list
-        _employees = await EmployeeService.GetEmployeesAsync();
+        await UpdateEmployeeListAsync();
     }
 
-    private async Task RemoveEmployeeAsync(Employee e)
+    private async Task RemoveEmployeeAsync(Employee employee)
     {
         // try to remove the employee
-        if (!EmployeeService.TryRemoveEmployee(e))
+        if (!(await EmployeeService.TryRemoveEmployeeAsync(employee)))
             return;
 
         // refresh the employee list
-        _employees = await EmployeeService.GetEmployeesAsync();
+        await UpdateEmployeeListAsync();
     }
 
-    private async Task SaveEmployeeAsync(Employee oldEmployee, Employee newEmployee)
+    private async Task SaveEmployeeAsync(Employee employee)
     {
         // try to update the employee
-        if (!EmployeeService.TryUpdateEmployee(oldEmployee, newEmployee))
+        if (!(await EmployeeService.TryUpdateEmployeeAsync(employee)))
             return;
 
         _editEmployee = null;
 
         // refresh the employee list
-        _employees = await EmployeeService.GetEmployeesAsync();
+        await UpdateEmployeeListAsync();
     }
 }
