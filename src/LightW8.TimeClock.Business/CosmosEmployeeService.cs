@@ -1,46 +1,11 @@
-﻿using Azure.Cosmos;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.Services.AppAuthentication;
-using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Azure.Cosmos;
 
 namespace LightW8.TimeClock.Business
 {
-    public static class CosmosEmployeeServiceExtensions
-    {
-        private const string EndpointUrl = @"https://lightw8-timeclock.documents.azure.com:443/";
-#if !DEBUG
-        private const string SecretsUrl = @"https://lightw8-timeclock.vault.azure.net/secrets/timeclock-cosmos-primarykey/ffcaa2cc6a44456881c40f306cb8aee3";
-#endif
-
-        public static IServiceCollection AddCosmosEmployeeServiceClient(this IServiceCollection services)
-        {
-            var companyName = "NewCo";
-#if DEBUG
-            // local emulator DB connection string (get your own)
-            var authKey = "";
-#else
-            var tokenProvider = new AzureServiceTokenProvider();
-            var keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(tokenProvider.KeyVaultTokenCallback));
-            var credentail = keyVaultClient.GetSecretAsync(SecretsUrl).Result;
-            var authKey = credentail.Value.ToString();
-#endif
-            //services.AddSingleton(new CosmosClient(EndpointUrl, authKey));
-            //services.AddTransient(provider => provider.ResolveWith<CosmosEmployeeService>(companyName));
-            //services.AddSingleton<IEmployeeService, CosmosEmployeeService>();
-            services.AddSingleton<IEmployeeService>(new CosmosEmployeeService(new CosmosClient(EndpointUrl, authKey), companyName));
-            return services;
-        }
-
-        // Helper method to shorten code registration code. See here: https://stackoverflow.com/a/53885374/22528
-        private static T ResolveWith<T>(this IServiceProvider provider, params object[] parameters) where T : class =>
-            ActivatorUtilities.CreateInstance<T>(provider, parameters);
-    }
-
     public class CosmosEmployeeService : IEmployeeService
     {
         private const string DatabaseId = "EmployeeDatabase";
@@ -69,20 +34,21 @@ namespace LightW8.TimeClock.Business
 
             // create a new unique id for this employee based on first name, last name, and DOB
             // how to tell Cosmos to auto-gen uniqueness based on these fields?
-            e.Id = e.LastName + ", " + e.FirstName + ", " + e.DateOfBirth.ToString("d");
+            e.Id = Employee.GetUniqueIdString(e);
+            e.Partition = _companyName;
 
             try
             {
                 // Read the item to see if it exists.  
-                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(_companyName));
+                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(e.Partition));
 
-                // if no exception thrown, item exists
+                // if no exception thrown, item already exists
                 return false;
             }
-            catch (CosmosException ex) // when (ex.Status == (int)HttpStatusCode.NotFound)
+            catch (CosmosException ex) when (ex.Status == (int)HttpStatusCode.NotFound)
             {
                 // otherwise, create item
-                ItemResponse<Employee> itemCreatedResponse = await _cosmosContainer.CreateItemAsync<Employee>(e, new PartitionKey(_companyName));
+                ItemResponse<Employee> itemCreatedResponse = await _cosmosContainer.CreateItemAsync<Employee>(e, new PartitionKey(e.Partition));
             }
 
             return true;
@@ -99,13 +65,13 @@ namespace LightW8.TimeClock.Business
             try
             {
                 // Read the item to see if it exists.  
-                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(_companyName));
+                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(e.Partition));
 
                 // Recommended (?) approach: use ReplaceItemAsync to add the employee
-                var employeeUpdatedResponse = await _cosmosContainer.ReplaceItemAsync<Employee>(e, e.Id, new PartitionKey(_companyName));
+                var employeeUpdatedResponse = await _cosmosContainer.ReplaceItemAsync<Employee>(e, e.Id, new PartitionKey(e.Partition));
 
                 // alternative usage 1:
-                //var employeeUpdatedResponse = await container.UpsertItemAsync<Employee>(e, new PartitionKey(_companyName));
+                //var employeeUpdatedResponse = await container.UpsertItemAsync<Employee>(e, new PartitionKey(e.Partition));
 
                 // alternative usage 2 (mutate received object):
                 //Employee oldEmployee = employeeExistsResponse;
@@ -114,9 +80,9 @@ namespace LightW8.TimeClock.Business
                 //oldEmployee.LastName = newEmployee.LastName;
                 //oldEmployee.DateOfBirth = newEmployee.DateOfBirth;
                 //oldEmployee.IsManager = newEmployee.IsManager;
-                //var employeeUpdatedResponse = await container.UpsertItemAsync<Employee>(oldEmployee, new PartitionKey(_companyName));
+                //var employeeUpdatedResponse = await container.UpsertItemAsync<Employee>(oldEmployee, new PartitionKey(e.Partition));
             }
-            catch (CosmosException ex) // when (ex.Status == (int)HttpStatusCode.NotFound)
+            catch (CosmosException ex) when (ex.Status == (int)HttpStatusCode.NotFound)
             {
                 // if item doesn't exist, or update fails return false
                 return false;
@@ -132,9 +98,9 @@ namespace LightW8.TimeClock.Business
             try
             {
                 // Read the item to see if it exists.  
-                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(_companyName));
+                var employeeExistsResponse = await _cosmosContainer.ReadItemAsync<Employee>(e.Id, new PartitionKey(e.Partition));
 
-                var employeeRemovedResponse = await _cosmosContainer.DeleteItemAsync<Employee>(e.Id, new PartitionKey(_companyName));
+                var employeeRemovedResponse = await _cosmosContainer.DeleteItemAsync<Employee>(e.Id, new PartitionKey(e.Partition));
             }
             catch (CosmosException ex) // when (ex.Status == (int)HttpStatusCode.Conflict) // 409
             {
@@ -163,7 +129,7 @@ namespace LightW8.TimeClock.Business
         {
             await InitIfNecessaryAsync();
 
-            var sqlQueryText = $"SELECT * FROM e"; // expand queries
+            var sqlQueryText = $"SELECT * FROM e ORDER BY LOWER(e.{nameof(Employee.LastName)})";
 
             var queryDefinition = new QueryDefinition(sqlQueryText);
 
@@ -180,9 +146,7 @@ namespace LightW8.TimeClock.Business
 
             CosmosDatabase database = await _cosmosClient.CreateDatabaseIfNotExistsAsync(DatabaseId);
 
-            _cosmosContainer = await database.CreateContainerIfNotExistsAsync(ContainerId, "/CompanyName");
-
-            //var container = _cosmosClient.GetContainer(DatabaseId, ContainerId);
+            _cosmosContainer = await database.CreateContainerIfNotExistsAsync(ContainerId, "/Partition");
 
             _isInitialized = true;
 

@@ -141,21 +141,6 @@ else
         {
             _employees.Add(e);
         }
-        StateHasChanged();
-    }
-
-    private void AddReports(Employee manager, IList<Employee> reports)
-    {
-        var localReports = reports ?? new[]
-        {
-            _employees.FirstOrDefault(e => e.FirstName == "Alice"),
-            _employees.FirstOrDefault(e => e.FirstName == "Chris"),
-        };
-
-        foreach (var report in localReports)
-        {
-            manager.TryAddReport(report);
-        }
     }
 
     private async Task AddNewEmployeeAsync()

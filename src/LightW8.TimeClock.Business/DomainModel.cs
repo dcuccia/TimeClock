@@ -15,51 +15,57 @@ namespace LightW8.TimeClock.Business
         public override string ToString() => JsonSerializer.Serialize(this);
     }
 
+    public static class EmployeeExtensions
+    {
+        // create a duplicate (shallow-copy reports, skip Id)
+        public static Employee Clone(this Employee e) => new Employee
+        {
+            FirstName = e.FirstName,
+            MiddleName = e.MiddleName,
+            LastName = e.LastName,
+            DateOfBirth = e.DateOfBirth,
+            IsManager = e.IsManager,
+            ReportIds = e.ReportIds,
+        };
+
+        // set values based on resetValues instance (shallow-copy reports, skip Id)
+        public static void Reset(this Employee e, Employee resetValues)
+        {
+            if (resetValues == null)
+                return;
+
+            e.FirstName = resetValues.FirstName;
+            e.MiddleName = resetValues.MiddleName;
+            e.LastName = resetValues.LastName;
+            e.DateOfBirth = resetValues.DateOfBirth;
+            e.IsManager = resetValues.IsManager;
+            e.ReportIds = resetValues.ReportIds;
+        }
+    }
+
     public class Employee
     {
+        public static string GetUniqueIdString(Employee e) => $"{e.LastName},{e.FirstName};{e.DateOfBirth.ToString("yyyy-MM-dd")}";
+
         [JsonPropertyName("id")]
         public string Id { get; set; }
+        public string Partition { get; set; }
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
         public string LastName { get; set; }
         public DateTime DateOfBirth { get; set; }
         public bool IsManager { get; set; } = false;
-        public IList<Employee> Reports { get; set; }
+        public IList<string> ReportIds { get; set;}
 
-        public bool TryAddReport(Employee employee)
-        {
-            if (!IsManager || employee == null || employee == this || Reports.Contains(employee)) // can't add self
-                return false;
+        public override bool Equals(object obj) => obj is Employee e && (GetUniqueIdString(e) == GetUniqueIdString(this));
 
-            Reports.Add(employee);
+        public override string ToString() => JsonSerializer.Serialize(this);
 
-            return true;
-        }
+    }
 
-        public override bool Equals(object obj) => obj is Employee e && e.FirstName == FirstName && e.LastName == LastName && e.DateOfBirth == DateOfBirth;
-
-        // create a duplicate (shallow-copy reports)
-        public Employee Clone() => new Employee 
-        {
-            FirstName = FirstName,
-            MiddleName = MiddleName,
-            LastName = LastName,
-            DateOfBirth = DateOfBirth,
-            IsManager = IsManager,
-            Reports = Reports,
-        };
-
-        public void Reset(Employee resetValues)
-        {
-            if(resetValues == null)
-                return;
-
-            FirstName = resetValues.FirstName;
-            MiddleName = resetValues.MiddleName;
-            LastName = resetValues.LastName;
-            DateOfBirth = resetValues.DateOfBirth;
-            IsManager = resetValues.IsManager;
-            Reports = resetValues.Reports;
-        }
+    public class ReportItems
+    {
+        [JsonPropertyName("id")]
+        public string ManagerId { get; set; }
     }
 }

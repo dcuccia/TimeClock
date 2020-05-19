@@ -6,15 +6,6 @@ using System.Threading.Tasks;
 
 namespace LightW8.TimeClock.Business
 {
-    public static class FakeEmployeeServiceExtensions
-    {
-        public static IServiceCollection AddFakeEmployeeServiceClient(this IServiceCollection services)
-        {
-            services.AddSingleton<IEmployeeService, FakeEmployeeService>();
-            return services;
-        }
-    }
-
     public class FakeEmployeeService : IEmployeeService
     {
         private bool _isInitialized = false;
@@ -33,7 +24,7 @@ namespace LightW8.TimeClock.Business
 
             // create a new unique id for this employee based on first name, last name, and DOB
             // how to tell Cosmos to auto-gen uniqueness based on these fields?
-            employee.Id = employee.LastName + ", " + employee.FirstName + ", " + employee.DateOfBirth.ToString("d");
+            employee.Id = Employee.GetUniqueIdString(employee);
 
             if(_company.Employees.Any(e => e.Id == employee.Id))
                 return false;
@@ -72,6 +63,24 @@ namespace LightW8.TimeClock.Business
                 return false;
 
             return _company.Employees.Remove(e);
+        }
+
+        public async Task<bool> TryAddReportsAsync(Employee manager, IEnumerable<Employee> reports)
+        {
+            if (manager == null || !manager.IsManager || reports == null || reports.Count() == 0 || 
+                reports.Any(report => report == null || report.Id == manager.Id || manager.ReportIds.Contains(report.Id)))
+                return false;
+
+            bool TryAddReport(Employee report)
+            {
+                manager.ReportIds.Add(report.Id);
+                return true;
+            }
+
+            return reports
+                .Select(async report => await Task.FromResult(TryAddReport(report)))
+                .AsParallel()
+                .All(value => value.Result);
         }
 
         public async IAsyncEnumerable<Employee> GetEmployeesAsync()

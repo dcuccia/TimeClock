@@ -31,8 +31,8 @@ namespace LightW8.TimeClock.BlazorServer
             services.AddHttpClient();
             services.AddRazorPages();
             services.AddServerSideBlazor();
-            services.AddCosmosEmployeeServiceClient();
-            //services.AddFakeEmployeeServiceClient();
+            //services.AddCosmosEmployeeServiceClient();
+            services.AddFakeEmployeeServiceClient();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
