@@ -1,19 +1,29 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using LightW8.TimeClock.Business.Model;
 
-namespace LightW8.TimeClock.Business
+namespace LightW8.TimeClock.Business.Service
 {
+    public static class IEnumerableExtensions { public static bool All(this IEnumerable<bool> items) { return items.All(item => item); } }
+
     public class FakeEmployeeService : IEmployeeService
     {
-        private bool _isInitialized = false;
-        private Company _company = new Company()
+        private bool _isInitialized;
+        private Company _company;
+        private List<Employee> _employees;
+
+        public FakeEmployeeService(CompanyNameResolver companyNameResolver)
         {
-            Name = "NewCo",
-            Employees = new List<Employee>()
-        };
+            _isInitialized = false;
+            _company = new Company()
+            {
+                Name = companyNameResolver.GetCompanyName(),
+                EmployeeIds = new List<string>()
+            };
+            _employees = new List<Employee>();
+        }
 
         public async Task<bool> TryAddEmployeeAsync(Employee employee)
         {
@@ -26,10 +36,11 @@ namespace LightW8.TimeClock.Business
             // how to tell Cosmos to auto-gen uniqueness based on these fields?
             employee.Id = Employee.GetUniqueIdString(employee);
 
-            if(_company.Employees.Any(e => e.Id == employee.Id))
+            if(_employees.Any(e => e.Id == employee.Id))
                 return false;
 
-            _company.Employees.Add(employee);
+            _employees.Add(employee);
+            _company.EmployeeIds.Add(employee.Id);
 
             return true;
         }
@@ -41,7 +52,7 @@ namespace LightW8.TimeClock.Business
             if (employee == null || employee.Id == null)
                 return false;
 
-            var e = _company.Employees.Where(e => e.Id == employee.Id).FirstOrDefault();
+            var e = _employees.Where(e => e.Id == employee.Id).FirstOrDefault();
 
             if (e == null)
                 return false;
@@ -59,10 +70,11 @@ namespace LightW8.TimeClock.Business
         {
             await InitIfNecessaryAsync();
 
-            if (e == null || !_company.Employees.Contains(e))
+            if (e == null || !_employees.Contains(e))
                 return false;
 
-            return _company.Employees.Remove(e);
+            _company.EmployeeIds.Remove(e.Id);
+            return _employees.Remove(e);
         }
 
         public async Task<bool> TryAddReportsAsync(Employee manager, IEnumerable<Employee> reports)
@@ -77,23 +89,26 @@ namespace LightW8.TimeClock.Business
                 return true;
             }
 
-            return reports
-                .Select(async report => await Task.FromResult(TryAddReport(report)))
-                .AsParallel()
-                .All(value => value.Result);
+            return await Task.FromResult(reports.Select(r => TryAddReport(r)).All());
         }
 
         public async IAsyncEnumerable<Employee> GetEmployeesAsync()
         {
             await InitIfNecessaryAsync();
 
-            var employees = _company.Employees.OrderBy(e => e.LastName).ToArray();
+            var employees = _employees.OrderBy(e => e.LastName).ToArray();
 
             foreach (Employee employee in employees)
             {
                 yield return await Task.FromResult(employee);
-                //yield return employee;
             }
+        }
+
+        public async Task<Employee> GetEmployeeByIdAsync(string id)
+        {
+            await InitIfNecessaryAsync();
+
+            return _employees.Where(e => e.Id == id).FirstOrDefault();
         }
 
         private async Task InitIfNecessaryAsync()

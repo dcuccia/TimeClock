@@ -1,16 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace LightW8.TimeClock.Business
+namespace LightW8.TimeClock.Business.Model
 {
     public class Company
     {
         [JsonPropertyName("id")]
         public string Id { get; set; }
         public string Name { get; set; }
-        public IList<Employee> Employees { get; set; }
+        public IList<string> EmployeeIds { get; set; }
 
         public override string ToString() => JsonSerializer.Serialize(this);
     }
@@ -41,31 +40,5 @@ namespace LightW8.TimeClock.Business
             e.IsManager = resetValues.IsManager;
             e.ReportIds = resetValues.ReportIds;
         }
-    }
-
-    public class Employee
-    {
-        public static string GetUniqueIdString(Employee e) => $"{e.LastName},{e.FirstName};{e.DateOfBirth.ToString("yyyy-MM-dd")}";
-
-        [JsonPropertyName("id")]
-        public string Id { get; set; }
-        public string Partition { get; set; }
-        public string FirstName { get; set; }
-        public string MiddleName { get; set; }
-        public string LastName { get; set; }
-        public DateTime DateOfBirth { get; set; }
-        public bool IsManager { get; set; } = false;
-        public IList<string> ReportIds { get; set;}
-
-        public override bool Equals(object obj) => obj is Employee e && (GetUniqueIdString(e) == GetUniqueIdString(this));
-
-        public override string ToString() => JsonSerializer.Serialize(this);
-
-    }
-
-    public class ReportItems
-    {
-        [JsonPropertyName("id")]
-        public string ManagerId { get; set; }
     }
 }
