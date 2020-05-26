@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightW8.TimeClock.BlazorServer", "LightW8.TimeClock\LightW8.TimeClock.BlazorServer.csproj", "{40026CFD-6F77-44E4-BEF8-267BF9521232}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LightW8.TimeClock.BlazorServer", "LightW8.TimeClock\LightW8.TimeClock.BlazorServer.csproj", "{40026CFD-6F77-44E4-BEF8-267BF9521232}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightW8.TimeClock.Business", "LightW8.TimeClock.Business\LightW8.TimeClock.Business.csproj", "{0B728DA7-A901-4F9E-B7A0-B50C929FC626}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LightW8.TimeClock.Shared", "LightW8.TimeClock.Shared\LightW8.TimeClock.Shared.csproj", "{0B728DA7-A901-4F9E-B7A0-B50C929FC626}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightW8.TimeClock.BlazorWebAssmebly", "LightW8.TimeClock.BlazorWebAssmebly\LightW8.TimeClock.BlazorWebAssmebly.csproj", "{7F0D5A3C-0E9D-4C3D-BC1C-B86CA81CED3F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{0B728DA7-A901-4F9E-B7A0-B50C929FC626}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0B728DA7-A901-4F9E-B7A0-B50C929FC626}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0B728DA7-A901-4F9E-B7A0-B50C929FC626}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F0D5A3C-0E9D-4C3D-BC1C-B86CA81CED3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F0D5A3C-0E9D-4C3D-BC1C-B86CA81CED3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F0D5A3C-0E9D-4C3D-BC1C-B86CA81CED3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F0D5A3C-0E9D-4C3D-BC1C-B86CA81CED3F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

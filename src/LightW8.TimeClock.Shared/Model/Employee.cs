@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace LightW8.TimeClock.Business.Model
+namespace LightW8.TimeClock.Shared.Model
 {
     public class Employee
     {
@@ -17,10 +17,17 @@ namespace LightW8.TimeClock.Business.Model
         public string LastName { get; set; }
         public DateTime DateOfBirth { get; set; }
         public bool IsManager { get; set; } = false;
-        public IList<string> ReportIds { get; set;}
+        public IList<string> ReportIds { get; set; } = new List<string>();
 
         public override bool Equals(object obj) => obj is Employee e && (GetUniqueIdString(e) == GetUniqueIdString(this));
 
-        public override string ToString() => JsonSerializer.Serialize(this);
+        public override string ToString() => JsonSerializer.Serialize(this);        
+    }
+
+    public static class EmployeeEx
+    {
+        public static string GetFullName(this Employee e) => string.IsNullOrWhiteSpace(e.MiddleName)
+            ? $"{e.FirstName} {e.LastName}"
+            : $"{e.FirstName} {e.MiddleName} {e.LastName}";
     }
 }

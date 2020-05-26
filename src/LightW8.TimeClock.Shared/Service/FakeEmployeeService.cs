@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using LightW8.TimeClock.Business.Model;
+using LightW8.TimeClock.Shared.Model;
 
-namespace LightW8.TimeClock.Business.Service
+namespace LightW8.TimeClock.Shared.Service
 {
     public static class IEnumerableExtensions { public static bool All(this IEnumerable<bool> items) { return items.All(item => item); } }
 
@@ -101,6 +101,55 @@ namespace LightW8.TimeClock.Business.Service
             foreach (Employee employee in employees)
             {
                 yield return await Task.FromResult(employee);
+            }
+        }
+
+        public async IAsyncEnumerable<Employee> GetEmployeeReportsAsync(Employee employee)
+        {
+            await InitIfNecessaryAsync();
+
+            if (employee == null || employee.IsManager)
+                yield break;
+
+            var reports = employee.ReportIds
+                .Select(rid => _employees.Where(e => e.Id == rid).FirstOrDefault())
+                .Distinct()
+                .OrderBy(r => r.LastName).ToArray();
+
+            foreach (Employee report in reports)
+            {
+                yield return await Task.FromResult(report);
+            }
+        }
+
+        public async IAsyncEnumerable<Employee> SearchEmployeesAsync(Employee employee)
+        {
+            await InitIfNecessaryAsync();
+
+            if (employee == null)
+                yield break;
+
+            var subqueries = new (string prop, string val, Predicate<Employee> func)[]{
+                (nameof(Employee.FirstName), employee.FirstName, e => employee?.FirstName == e.FirstName ),
+                (nameof(Employee.MiddleName), employee.MiddleName, e => employee?.MiddleName == e.MiddleName ),
+                (nameof(Employee.LastName), employee.LastName, e => employee?.LastName == e.LastName )}
+                .Where(tuple => !string.IsNullOrWhiteSpace(tuple.val))
+                .ToArray();
+
+            if (subqueries.Length == 0)
+                yield break;
+
+            var foundEmployees = _employees.Where(e => subqueries.First().func(e));
+            foreach (var subquery in subqueries.Skip(1))
+            {
+                foundEmployees = foundEmployees.Where(e => subquery.func(e));
+            }
+
+            foundEmployees = foundEmployees.ToArray();
+
+            foreach (Employee foundEmployee in foundEmployees)
+            {
+                yield return await Task.FromResult(foundEmployee);
             }
         }
 

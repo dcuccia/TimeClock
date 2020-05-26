@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace LightW8.TimeClock.Business.Model
+namespace LightW8.TimeClock.Shared.Model
 {
     public class Company
     {

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Azure.Cosmos;
-using LightW8.TimeClock.Business.Model;
+using LightW8.TimeClock.Shared.Model;
 
-namespace LightW8.TimeClock.Business.Service
+namespace LightW8.TimeClock.Shared.Service
 {
     public class CosmosEmployeeService : IEmployeeService
     {
@@ -130,7 +130,7 @@ namespace LightW8.TimeClock.Business.Service
         {
             await InitIfNecessaryAsync();
 
-            var sqlQueryText = $"SELECT * FROM e WHERE e.{nameof(Employee.Id)} = '{id}'";
+            var sqlQueryText = $"SELECT * FROM e WHERE e.{nameof(Employee.Id).ToLower()} = '{id}'";
 
             var queryDefinition = new QueryDefinition(sqlQueryText);
 
@@ -139,7 +139,24 @@ namespace LightW8.TimeClock.Business.Service
                 return employee;
             }
 
-            return null;
+            return default;
+        }
+
+        public async IAsyncEnumerable<Employee> GetEmployeeReportsAsync(Employee employee)
+        {
+            await InitIfNecessaryAsync();
+
+            if (employee == null || !employee.IsManager || employee.ReportIds == null || employee.ReportIds.Count == 0)
+                yield break;
+
+            var sqlQueryText = $"SELECT * FROM e WHERE e.{nameof(Employee.Id).ToLower()} IN ({string.Join(",", employee.ReportIds)})";
+
+            var queryDefinition = new QueryDefinition(sqlQueryText);
+
+            await foreach (Employee report in _cosmosContainer.GetItemQueryIterator<Employee>(queryDefinition))
+            {
+                yield return report;
+            }
         }
 
         public async IAsyncEnumerable<Employee> GetEmployeesAsync()
@@ -154,6 +171,38 @@ namespace LightW8.TimeClock.Business.Service
             await foreach (Employee employee in _cosmosContainer.GetItemQueryIterator<Employee>(queryDefinition))
             {
                 yield return employee;
+            }
+        }
+
+        public async IAsyncEnumerable<Employee> SearchEmployeesAsync(Employee employee)
+        {
+            await InitIfNecessaryAsync();
+
+            if (employee == null)
+                yield break;
+
+            var subqueries = new List<(string prop, string val)>{
+                (nameof(employee.FirstName), employee.FirstName),
+                (nameof(employee.MiddleName), employee.MiddleName),
+                (nameof(employee.LastName), employee.LastName),}
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.val))
+                .Select(pair => $"e.{pair.prop} = '{pair.val}'")
+                .ToArray();
+
+            if(subqueries.Length == 0)
+                yield break;
+
+            var sqlQueryText = $"SELECT * FROM e WHERE " + subqueries.First();
+            foreach(var subquery in subqueries.Skip(1))
+            {
+                sqlQueryText += " AND " + subquery;
+            }
+
+            var queryDefinition = new QueryDefinition(sqlQueryText);
+
+            await foreach (Employee foundEmployee in _cosmosContainer.GetItemQueryIterator<Employee>(queryDefinition))
+            {
+                yield return foundEmployee;
             }
         }
 

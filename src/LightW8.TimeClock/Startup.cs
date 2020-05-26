@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using LightW8.TimeClock.Business.Service;
+using LightW8.TimeClock.Shared.Service;
 
 namespace LightW8.TimeClock.BlazorServer
 {

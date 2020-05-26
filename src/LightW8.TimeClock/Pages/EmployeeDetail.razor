@@ -4,44 +4,93 @@
 
 @if (_employee == null)
 {
-<p><em>Loading...</em></p>
+    <p><em>Loading...</em></p>
 }
 else
 {
-<h2>Employee list</h2>
-<table class="table">
-    <thead>
-        <tr>
-            <th>First Name</th>
-            <th>Middle Name</th>
-            <th>Last Name</th>
-            <th>Date of Birth</th>
-            <th>Is Manager</th>
-            <th>Assign Reports</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>@_employee.FirstName</td>
-            <td>@_employee.MiddleName</td>
-            <td>@_employee.LastName</td>
-            <td>@_employee.DateOfBirth.ToString("d")</td>
-            <td>
-                <input type="checkbox" @bind="_employee.IsManager" disabled>
-            </td>
-            <td>
-                <button class="btn btn-primary"
-                        @onclick="@(e => AssignReports())">
-                    Edit
-                </button>
-            </td>
-        </tr>
-    </tbody>
-</table>
-}
+    <a href="employees">← return to employee list</a>
+    <ul>
+        <li><h2>@(_employee.GetFullName()) (DOB: @_employee.DateOfBirth.ToString("d")) </h2></li>
+        <li>
+            <button class="btn btn-primary" @onclick="@(e => _isSearching = !_isSearching)">
+                @(_isSearching ? "Cancel" : "Add Reports" )
+            </button>
+        </li>
+    </ul>
+    <br />
 
+    <div>
+        <input type="text" name="name" placeholder="Search by first name, last name, etc"/>
+        <button class="btn btn-primary" @onclick="@(async e => await SearchReportsAsync())">
+            "Search Reports"
+        </button>
+    </div>
+    <br />
+
+    @if (_isSearching && _searchReport != null)
+    {
+        <h2>Add a direct report:</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Last Name</th>
+                    <th>Date of Birth</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input @bind-value="@_searchReport.FirstName" /></td>
+                    <td><input @bind-value="@_searchReport.MiddleName" /></td>
+                    <td><input @bind-value="@_searchReport.LastName" /></td>
+                    <td><input type="date" @bind-value="@_searchReport.DateOfBirth" /></td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="@(async e => await AddReport(_searchReport))">
+                            Add as direct report
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <br />
+    }
+
+    @if (_employee.IsManager)
+    {
+        <h3>Direct reports</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Last Name</th>
+                    <th>Date of Birth</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var employee in _reports)
+                {
+                    <tr>
+                        <td>@_employee.FirstName</td>
+                        <td>@_employee.MiddleName</td>
+                        <td>@_employee.LastName</td>
+                        <td>@_employee.DateOfBirth.ToString("d")</td>
+                        <td>
+                            <input type="checkbox" @bind="_employee.IsManager" disabled>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
 @code {
     private Employee _employee;
+    private IList<Employee> _reports = new List<Employee>();
+    private Employee _searchReport = new Employee();
+    private IList<Employee> _searchReportResults = new List<Employee>();
+    private bool _isSearching = false;
 
     [Parameter]
     public string Id { get; set; }
@@ -49,10 +98,22 @@ else
     protected override async Task OnInitializedAsync()
     {
         _employee = await EmployeeService.GetEmployeeByIdAsync(Id);
+
+        if (_employee == null || !_employee.IsManager)
+            return;
+
+        _reports = await EmployeeService.GetEmployeeReportsAsync(_employee).ToListAsync();
     }
 
-    private void AssignReports()
+    private async Task SearchReportsAsync()
     {
+        _searchReportResults = await EmployeeService.SearchEmployeesAsync(_searchReport).ToListAsync();
+    }
 
+    private async Task AddReport(Employee report)
+    {
+        (_employee.ReportIds ??= new List<string>()).Add(report.Id);
+
+        await EmployeeService.TryUpdateEmployeeAsync(_employee);
     }
 }

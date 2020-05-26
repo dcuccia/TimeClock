@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
 
-namespace LightW8.TimeClock.Business.Service
+namespace LightW8.TimeClock.Shared.Service
 {
     public static class IServiceCollectionExtensions
     {
